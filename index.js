@@ -5,10 +5,30 @@ let persons = require('./persons')
 
 const app = express()
 
+const cors = require('cors')
+
+app.use(cors())
+
 app.use(express.json())
 
+const morgan = require('morgan')
+
+// app.use(morgan('tiny'))
+
+morgan.token('content', function (req, res) {
+  return JSON.stringify(req.body) || '-'
+})
+
+morgan.token('param', function (req, res, param) {
+  return JSON.stringify(req.params[param]) || '-'
+})
+
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms - :content - :param[id]'))
+
+// Note the "content" logging data even in the console can be dangerous since it can contain sensitive data and may violate local privacy law (e.g. GDPR in EU) or business-standard. In this exercise, you don't have to worry about privacy issues, but in practice, try not to log any sensitive data.
+
 app.get('/', (request, response) => {
-  response.send('<h1>klk</h1>')
+  response.send('<h1>Hello World</h1>')
 })
 
 app.get('/info', (request, response) => {
@@ -25,8 +45,6 @@ app.get('/api/persons/:id', (request, response) => {
 
   const filteredPerson = persons.find(person => person.id === id)
 
-  console.log({ filteredPerson })
-
   if (filteredPerson) {
     response.json(filteredPerson)
   } else {
@@ -37,11 +55,17 @@ app.get('/api/persons/:id', (request, response) => {
 app.delete('/api/persons/:id', (request, response) => {
   const id = Number(request.params.id)
 
+  const isPerson = (persons.filter(person => person.id === id).length >= 1)
+  // console.log(isPerson)
+  if (!isPerson) {
+    response.status(404).end()
+  }
+
   persons = persons.filter(person => person.id !== id)
 
-  console.log({ persons })
+  // console.log({ persons })
 
-  response.status(204)
+  response.status(204).end()
 })
 
 app.post('/api/persons', (request, response) => {
@@ -69,7 +93,13 @@ app.post('/api/persons', (request, response) => {
   response.json(newPerson)
 })
 
-const PORT = 3001
+const unknownEndpoint = (request, response) => {
+  response.status(404).json({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+const PORT = process.env.PORT || 3001
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
