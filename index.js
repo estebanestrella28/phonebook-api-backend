@@ -1,19 +1,17 @@
+require('dotenv').config()
+require('./mongo')
+const Contact = require('./models/Contact')
 const express = require('express') // Commonjs
 // import express from 'express'
 // to use ES6 Modules have to add "type": "module" to package.json
-let persons = require('./persons')
-
-const app = express()
-
+const morgan = require('morgan')
 const cors = require('cors')
-
+const handleErrors = require('./middlewares/handleErrors')
+const unknownEndpoint = require('./middlewares/unknownEndpoint')
+const app = express()
 app.use(express.static('build'))
 app.use(cors())
-
 app.use(express.json())
-
-const morgan = require('morgan')
-
 // app.use(morgan('tiny'))
 
 morgan.token('content', function (req, res) {
@@ -33,70 +31,73 @@ app.get('/', (request, response) => {
 })
 
 app.get('/info', (request, response) => {
-  response.send(`<p>Phonebook has info for ${persons.length} people</p>` +
-  '\n' + `<spam> ${new Date()}</spam>`)
+  Contact.find({}).then(res => {
+    response.send(`<p>Phonebook has info for ${res.length} people</p>` +
+    '\n' + `<spam> ${new Date()}</spam>`)
+  })
 })
 
 app.get('/api/persons', (request, response) => {
-  response.json(persons)
+  Contact.find({}).then(contacts => {
+    response.json(contacts)
+  })
 })
 
-app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
+app.get('/api/persons/:id', (request, response, next) => {
+  const id = request.params.id
 
-  const filteredPerson = persons.find(person => person.id === id)
-
-  if (filteredPerson) {
-    response.json(filteredPerson)
-  } else {
-    response.status(404).json({ error: 'contact not found' })
-  }
+  Contact.findById(id).then(contact => {
+    console.log(contact)
+    if (contact) {
+      response.json(contact)
+    } else {
+      response.status(404).end()
+    }
+  }).catch(err => {
+    next(err)
+  })
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
+app.delete('/api/persons/:id', (request, response, next) => {
+  const id = request.params.id
 
-  const isPerson = (persons.filter(person => person.id === id).length >= 1)
-  // console.log(isPerson)
-  if (!isPerson) {
-    response.status(404).end()
-  }
-
-  persons = persons.filter(person => person.id !== id)
-
-  // console.log({ persons })
-
-  response.status(204).end()
+  Contact.findByIdAndRemove(id).then(res => {
+    console.log(res)
+    response.status(204).end()
+  }).catch(error => {
+    next(error)
+  })
 })
 
 app.post('/api/persons', (request, response) => {
   const newName = request.body.name
   const newNumber = request.body.number
 
-  // const maxId = Math.max(...persons.map(p => p.id))
-
-  const maxId = Math.floor(Math.random() * 1000000)
-
   if (!newName || !newNumber) {
     return response.status(400).json({ error: 'missing content' })
-  } else if (persons.filter(person => person.name.toUpperCase() === newName.toUpperCase()).length > 0) {
-    return response.status(400).json({ error: 'name must be unique' })
   }
 
-  const newPerson = {
+  const contact = new Contact({
     name: newName,
-    number: newNumber,
-    id: maxId + 1
-  }
+    number: newNumber
+  })
 
-  persons = persons.concat(newPerson)
-
-  response.json(newPerson)
+  contact.save()
+    .then(savedcontact => {
+      response.json(savedcontact)
+    })
 })
 
-const unknownEndpoint = (request, response) => {
-  response.status(404).json({ error: 'unknown endpoint' })
-}
+app.put('/api/persons/:id', (request, response, next) => {
+  const id = request.params.id
+  const changedContact = request.body
+
+  Contact.findByIdAndUpdate(id, changedContact, { new: true }).then(contact => {
+    response.json(contact)
+  }).catch(error => next(error))
+})
+
+app.use(handleErrors)
 
 app.use(unknownEndpoint)
 
