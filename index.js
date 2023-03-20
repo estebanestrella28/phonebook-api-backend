@@ -69,7 +69,7 @@ app.delete('/api/persons/:id', (request, response, next) => {
   })
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const newName = request.body.name
   const newNumber = request.body.number
 
@@ -86,13 +86,17 @@ app.post('/api/persons', (request, response) => {
     .then(savedcontact => {
       response.json(savedcontact)
     })
+    .catch(error => {
+      console.log(error.name)
+      next(error)
+    })
 })
 
 app.put('/api/persons/:id', (request, response, next) => {
   const id = request.params.id
   const changedContact = request.body
 
-  Contact.findByIdAndUpdate(id, changedContact, { new: true }).then(contact => {
+  Contact.findByIdAndUpdate(id, changedContact, { new: true, runValidators: true }).then(contact => {
     response.json(contact)
   }).catch(error => next(error))
 })

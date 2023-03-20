@@ -5,3 +5,14 @@ Content-Type: application/json
   "name": "example",
   "number": "809-000-0000"
 }
+
+
+###
+POST http://localhost:3001/api/persons HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "str",
+  "number": "srr"
+}
+

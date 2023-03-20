@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-
 const connectionString = process.env.MONGO_DB_URI
 
 mongoose.set('strictQuery', false)
@@ -8,7 +7,7 @@ mongoose.connect(connectionString)
   .then(() => {
     console.log('Database Connected')
   }).catch((error) => {
-    console.log(error)
+    console.log(error.message)
   })
 
 // const contact = new Contact({
